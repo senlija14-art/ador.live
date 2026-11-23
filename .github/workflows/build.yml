@@ -43,6 +43,7 @@ jobs:
         run: |
           flutter create --org com.ador.live --project-name ador_live --platforms=android build_proj
           cp pubspec.yaml build_proj/
+          [ -f pubspec.lock ] && cp pubspec.lock build_proj/ || true
           rm -rf build_proj/lib
           cp -r lib build_proj/
 
@@ -61,7 +62,7 @@ jobs:
           compile_target_sdk = 37
           min_sdk = 24
 
-          # 1. Fix jcenter() & legacy buildscript issues in pub-cache
+          # 1. Clean up pub-cache gradle files for legacy plugins (e.g., zego_zim)
           pub_cache = os.path.expanduser("~/.pub-cache")
           gradle_files = glob.glob("build_proj/android/**/*.gradle*", recursive=True)
           if os.path.exists(pub_cache):
@@ -75,13 +76,9 @@ jobs:
                   original = content
                   content = re.sub(r'\bjcenter\(\)', 'mavenCentral()', content)
 
-                  if "zego_zim" in gfile and "buildscript {" in content:
-                      content = re.sub(
-                          r'buildscript\s*\{.*?\n\}\s*',
-                          '',
-                          content,
-                          flags=re.DOTALL
-                      )
+                  if "zego_zim" in gfile:
+                      content = re.sub(r'buildscript\s*\{.*?\n\}\s*', '', content, flags=re.DOTALL)
+                      content = re.sub(r'allprojects\s*\{.*?\n\}\s*', '', content, flags=re.DOTALL)
 
                   if content != original:
                       with open(gfile, "w", encoding="utf-8") as f:
@@ -89,7 +86,7 @@ jobs:
               except Exception:
                   pass
 
-          # 2. Update app build.gradle / build.gradle.kts to SDK 37
+          # 2. Update app build.gradle / build.gradle.kts
           base = "build_proj/android/app/"
           kts = base + "build.gradle.kts"
           groovy = base + "build.gradle"
@@ -105,9 +102,9 @@ jobs:
               s = f.read()
 
           if path.endswith(".kts"):
-              s = re.sub(r'compileSdk\s*=.*', f'compileSdk = {compile_target_sdk}', s)
-              s = re.sub(r'targetSdk\s*=.*', f'targetSdk = {compile_target_sdk}', s)
-              s = re.sub(r'minSdk\s*=.*', f'minSdk = {min_sdk}', s)
+              s = re.sub(r'compileSdk\s*=\s*.*', f'compileSdk = {compile_target_sdk}', s)
+              s = re.sub(r'targetSdk\s*=\s*.*', f'targetSdk = {compile_target_sdk}', s)
+              s = re.sub(r'minSdk\s*=\s*.*', f'minSdk = {min_sdk}', s)
           else:
               s = re.sub(r'compileSdkVersion\s+.*', f'compileSdkVersion {compile_target_sdk}', s)
               s = re.sub(r'compileSdk\s+.*', f'compileSdk {compile_target_sdk}', s)
