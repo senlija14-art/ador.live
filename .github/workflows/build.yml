@@ -89,29 +89,61 @@ jobs:
           compile_target_sdk = 36
           min_sdk = 24
 
+          # 1. Fix zego_zim build.gradle to prevent duplicate 'clean' task & AGP extension errors
           pub_cache = os.path.expanduser("~/.pub-cache")
-          gradle_files = glob.glob("build_proj/android/**/*.gradle*", recursive=True)
           if os.path.exists(pub_cache):
-              gradle_files += glob.glob(f"{pub_cache}/**/*.gradle*", recursive=True)
+              for zgradle in glob.glob(f"{pub_cache}/**/zego_zim*/android/build.gradle", recursive=True):
+                  clean_zego_gradle = """apply plugin: 'com.android.library'
 
-          for gfile in gradle_files:
+android {
+    namespace 'im.zego.zim_flutter'
+    compileSdk 36
+
+    defaultConfig {
+        minSdk 24
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.annotation:annotation:1.8.0'
+}
+"""
+                  with open(zgradle, "w", encoding="utf-8") as f:
+                      f.write(clean_zego_gradle)
+                  print("Patched zego_zim gradle:", zgradle)
+
+              # Clean jcenter() from other cached gradle files
+              for gfile in glob.glob(f"{pub_cache}/**/*.gradle*", recursive=True):
+                  if "zego_zim" in gfile:
+                      continue
+                  try:
+                      with open(gfile, "r", encoding="utf-8", errors="ignore") as f:
+                          content = f.read()
+                      updated = re.sub(r'\bjcenter\(\)', 'mavenCentral()', content)
+                      if updated != content:
+                          with open(gfile, "w", encoding="utf-8") as f:
+                              f.write(updated)
+                  except Exception:
+                      pass
+
+          # 2. Clean jcenter() in build_proj gradle files
+          for gfile in glob.glob("build_proj/android/**/*.gradle*", recursive=True):
               try:
                   with open(gfile, "r", encoding="utf-8", errors="ignore") as f:
                       content = f.read()
-
-                  original = content
-                  content = re.sub(r'\bjcenter\(\)', 'mavenCentral()', content)
-
-                  if "zego_zim" in gfile:
-                      content = re.sub(r'buildscript\s*\{.*?\n\}\s*', '', content, flags=re.DOTALL)
-                      content = re.sub(r'allprojects\s*\{.*?\n\}\s*', '', content, flags=re.DOTALL)
-
-                  if content != original:
+                  updated = re.sub(r'\bjcenter\(\)', 'mavenCentral()', content)
+                  if updated != content:
                       with open(gfile, "w", encoding="utf-8") as f:
-                          f.write(content)
+                          f.write(updated)
               except Exception:
                   pass
 
+          # 3. Update app build.gradle / build.gradle.kts
           base = "build_proj/android/app/"
           kts = base + "build.gradle.kts"
           groovy = base + "build.gradle"
@@ -141,6 +173,7 @@ jobs:
           with open(path, "w", encoding="utf-8") as f:
               f.write(s)
 
+          # 4. Update AndroidManifest.xml
           manifest = "build_proj/android/app/src/main/AndroidManifest.xml"
           with open(manifest, "r", encoding="utf-8") as f:
               m = f.read()
