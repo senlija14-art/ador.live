@@ -33,10 +33,10 @@ jobs:
         with:
           channel: stable
 
-      - name: Install Android SDK 35
+      - name: Install Android SDK 36
         run: |
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
 
       - name: Create Android Project
@@ -46,14 +46,52 @@ jobs:
           rm -rf build_proj/lib
           cp -r lib build_proj/
 
+      - name: Install Dependencies
+        working-directory: build_proj
+        run: |
+          flutter pub get
+
       - name: Configure Android Project
         run: |
           python3 - <<'PY'
           import os
           import re
+          import glob
 
+          target_sdk = 36
+          min_sdk = 24
+
+          # 1. Fix jcenter() & old buildscript issues in pub-cache (especially zego_zim)
+          pub_cache = os.path.expanduser("~/.pub-cache")
+          gradle_files = glob.glob("build_proj/android/**/*.gradle*", recursive=True)
+          if os.path.exists(pub_cache):
+              gradle_files += glob.glob(f"{pub_cache}/**/*.gradle*", recursive=True)
+
+          for gfile in gradle_files:
+              try:
+                  with open(gfile, "r", encoding="utf-8", errors="ignore") as f:
+                      content = f.read()
+
+                  original = content
+                  content = re.sub(r'\bjcenter\(\)', 'mavenCentral()', content)
+
+                  # If zego_zim build.gradle has legacy buildscript block that conflicts with modern AGP
+                  if "zego_zim" in gfile and "buildscript {" in content:
+                      content = re.sub(
+                          r'buildscript\s*\{.*?\n\}\s*',
+                          '',
+                          content,
+                          flags=re.DOTALL
+                      )
+
+                  if content != original:
+                      with open(gfile, "w", encoding="utf-8") as f:
+                          f.write(content)
+              except Exception:
+                  pass
+
+          # 2. Update app build.gradle / build.gradle.kts
           base = "build_proj/android/app/"
-
           kts = base + "build.gradle.kts"
           groovy = base + "build.gradle"
 
@@ -64,11 +102,8 @@ jobs:
           else:
               raise Exception("Android app Gradle file not found")
 
-          with open(path, "r") as f:
+          with open(path, "r", encoding="utf-8") as f:
               s = f.read()
-
-          target_sdk = 35
-          min_sdk = 24
 
           if path.endswith(".kts"):
               s = re.sub(r'compileSdk\s*=\s*.*', f'compileSdk = {target_sdk}', s)
@@ -82,12 +117,12 @@ jobs:
               s = re.sub(r'minSdkVersion\s+.*', f'minSdkVersion {min_sdk}', s)
               s = re.sub(r'minSdk\s+.*', f'minSdk {min_sdk}', s)
 
-          with open(path, "w") as f:
+          with open(path, "w", encoding="utf-8") as f:
               f.write(s)
 
+          # 3. Update AndroidManifest.xml
           manifest = "build_proj/android/app/src/main/AndroidManifest.xml"
-
-          with open(manifest, "r") as f:
+          with open(manifest, "r", encoding="utf-8") as f:
               m = f.read()
 
           permissions = """
@@ -118,16 +153,11 @@ jobs:
               count=1
           )
 
-          with open(manifest, "w") as f:
+          with open(manifest, "w", encoding="utf-8") as f:
               f.write(m)
 
           print("Android configuration completed successfully")
           PY
-
-      - name: Install Dependencies
-        working-directory: build_proj
-        run: |
-          flutter pub get
 
       - name: Verify Android SDK
         working-directory: build_proj
