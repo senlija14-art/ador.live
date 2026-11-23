@@ -33,10 +33,10 @@ jobs:
         with:
           channel: stable
 
-      - name: Install Android SDK 36
+      - name: Install Android SDK 37
         run: |
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+          sdkmanager --install "platforms;android-37" "build-tools;36.0.0" "platform-tools" || sdkmanager --install "platforms;android-37" "platform-tools"
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
 
       - name: Create Android Project
@@ -58,10 +58,10 @@ jobs:
           import re
           import glob
 
-          target_sdk = 36
+          compile_target_sdk = 37
           min_sdk = 24
 
-          # 1. Fix jcenter() & old buildscript issues in pub-cache (especially zego_zim)
+          # 1. Fix jcenter() & legacy buildscript issues in pub-cache
           pub_cache = os.path.expanduser("~/.pub-cache")
           gradle_files = glob.glob("build_proj/android/**/*.gradle*", recursive=True)
           if os.path.exists(pub_cache):
@@ -75,7 +75,6 @@ jobs:
                   original = content
                   content = re.sub(r'\bjcenter\(\)', 'mavenCentral()', content)
 
-                  # If zego_zim build.gradle has legacy buildscript block that conflicts with modern AGP
                   if "zego_zim" in gfile and "buildscript {" in content:
                       content = re.sub(
                           r'buildscript\s*\{.*?\n\}\s*',
@@ -90,7 +89,7 @@ jobs:
               except Exception:
                   pass
 
-          # 2. Update app build.gradle / build.gradle.kts
+          # 2. Update app build.gradle / build.gradle.kts to SDK 37
           base = "build_proj/android/app/"
           kts = base + "build.gradle.kts"
           groovy = base + "build.gradle"
@@ -106,14 +105,14 @@ jobs:
               s = f.read()
 
           if path.endswith(".kts"):
-              s = re.sub(r'compileSdk\s*=\s*.*', f'compileSdk = {target_sdk}', s)
-              s = re.sub(r'targetSdk\s*=\s*.*', f'targetSdk = {target_sdk}', s)
-              s = re.sub(r'minSdk\s*=\s*.*', f'minSdk = {min_sdk}', s)
+              s = re.sub(r'compileSdk\s*=.*', f'compileSdk = {compile_target_sdk}', s)
+              s = re.sub(r'targetSdk\s*=.*', f'targetSdk = {compile_target_sdk}', s)
+              s = re.sub(r'minSdk\s*=.*', f'minSdk = {min_sdk}', s)
           else:
-              s = re.sub(r'compileSdkVersion\s+.*', f'compileSdkVersion {target_sdk}', s)
-              s = re.sub(r'compileSdk\s+.*', f'compileSdk {target_sdk}', s)
-              s = re.sub(r'targetSdkVersion\s+.*', f'targetSdkVersion {target_sdk}', s)
-              s = re.sub(r'targetSdk\s+.*', f'targetSdk {target_sdk}', s)
+              s = re.sub(r'compileSdkVersion\s+.*', f'compileSdkVersion {compile_target_sdk}', s)
+              s = re.sub(r'compileSdk\s+.*', f'compileSdk {compile_target_sdk}', s)
+              s = re.sub(r'targetSdkVersion\s+.*', f'targetSdkVersion {compile_target_sdk}', s)
+              s = re.sub(r'targetSdk\s+.*', f'targetSdk {compile_target_sdk}', s)
               s = re.sub(r'minSdkVersion\s+.*', f'minSdkVersion {min_sdk}', s)
               s = re.sub(r'minSdk\s+.*', f'minSdk {min_sdk}', s)
 
