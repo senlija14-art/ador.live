@@ -15,7 +15,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Java 17
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: zulu
@@ -26,47 +26,43 @@ jobs:
         with:
           channel: stable
 
-      - name: Generate Android Project
+      - name: Create Android Project
         run: |
           flutter create --org com.ador.live --project-name ador_live build_proj
           cp pubspec.yaml build_proj/
-          rm -rf build_proj/lib build_proj/test
+          rm -rf build_proj/lib
           cp -r lib build_proj/
 
-      - name: Configure Android
+      - name: Get Dependencies
+        working-directory: build_proj
+        run: flutter pub get
+
+      - name: Fix Zego Android Gradle
         run: |
           python3 - <<'PY'
           import re
           from pathlib import Path
 
-          root = Path("build_proj/android")
-
-          for name in ["build.gradle", "build.gradle.kts"]:
-              p = root / name
-              if p.exists():
-                  s = p.read_text()
-                  s = s.replace("jcenter()", "mavenCentral()")
-                  p.write_text(s)
-
-          p = Path.home()
-          files = list(p.glob(
+          files = list(Path.home().glob(
               ".pub-cache/hosted/pub.dev/zego_zim-*/android/build.gradle"
           ))
 
-          for f in files:
-              s = f.read_text()
-              s = re.sub(
-                  r'\bjcenter\s*\(\s*\)',
-                  'mavenCentral()',
-                  s
-              )
+          if not files:
+              raise Exception("Zego ZIM Gradle file not found")
+
+          for p in files:
+              s = p.read_text()
+              s = re.sub(r'\bjcenter\s*\(\s*\)',
+                         'mavenCentral()', s)
 
               lines = s.splitlines()
+
               android = [
                   i for i, x in enumerate(lines)
                   if "com.android.library" in x
                   and ("apply plugin" in x or "id " in x)
               ]
+
               kotlin = [
                   i for i, x in enumerate(lines)
                   if ("kotlin-android" in x or
@@ -75,28 +71,20 @@ jobs:
               ]
 
               if android and kotlin and kotlin[0] < android[0]:
-                  lines[kotlin[0]], lines[android[0]] = (
-                      lines[android[0]], lines[kotlin[0]]
+                  lines[android[0]], lines[kotlin[0]] = (
+                      lines[kotlin[0]], lines[android[0]]
                   )
 
-              f.write_text("\n".join(lines) + "\n")
-              print("Patched:", f)
+              p.write_text("\n".join(lines) + "\n")
+              print("Fixed:", p)
 
-          app = root / "app"
-          rules = app / "proguard-rules.pro"
-          rules.write_text(
-              "-keep class **.zego.** { *; }\n"
-              "-keep class **.**.zego_zpns.** { *; }\n"
-          )
           PY
 
       - name: Build APK
         working-directory: build_proj
-        run: |
-          flutter pub get
-          flutter build apk --release
+        run: flutter build apk --release
 
-      - name: Upload Ador Live APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Ador-Live-APK
