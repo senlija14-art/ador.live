@@ -47,6 +47,31 @@ jobs:
           rm -rf build_proj/lib
           cp -r lib build_proj/
 
+      - name: Ensure SDK Constraint in pubspec.yaml
+        run: |
+          python3 - <<'PY'
+          import re
+
+          dart_ver = re.search(r'Dart SDK version:\s*([0-9]+\.[0-9]+\.[0-9]+)', __import__('subprocess').check_output(['dart', '--version'], text=True))
+          sdk_constraint = f"^{dart_ver.group(1)}" if dart_ver else "^3.14.0"
+
+          pub_path = "build_proj/pubspec.yaml"
+          with open(pub_path, "r", encoding="utf-8") as f:
+              text = f.read()
+
+          if re.search(r'(?m)^environment:\s*\n(?:\s+.*\n)*?\s*sdk:\s*.+', text):
+              text = re.sub(r'(?m)^(\s*sdk:\s*).+$', rf'\g<1>\'{sdk_constraint}\'', text, count=1)
+          elif re.search(r'(?m)^environment:\s*$', text):
+              text = re.sub(r'(?m)^environment:\s*$', f'environment:\n  sdk: \'{sdk_constraint}\'', text, count=1)
+          else:
+              text = f"environment:\n  sdk: '{sdk_constraint}'\n\n" + text
+
+          with open(pub_path, "w", encoding="utf-8") as f:
+              f.write(text)
+
+          print("Updated SDK constraint to:", sdk_constraint)
+          PY
+
       - name: Install Dependencies
         working-directory: build_proj
         run: |
@@ -62,7 +87,6 @@ jobs:
           compile_target_sdk = 36
           min_sdk = 24
 
-          # 1. Fix jcenter() & legacy buildscript blocks in pub-cache (including zego_zim)
           pub_cache = os.path.expanduser("~/.pub-cache")
           gradle_files = glob.glob("build_proj/android/**/*.gradle*", recursive=True)
           if os.path.exists(pub_cache):
@@ -86,7 +110,6 @@ jobs:
               except Exception:
                   pass
 
-          # 2. Update app build.gradle / build.gradle.kts
           base = "build_proj/android/app/"
           kts = base + "build.gradle.kts"
           groovy = base + "build.gradle"
@@ -116,7 +139,6 @@ jobs:
           with open(path, "w", encoding="utf-8") as f:
               f.write(s)
 
-          # 3. Update AndroidManifest.xml
           manifest = "build_proj/android/app/src/main/AndroidManifest.xml"
           with open(manifest, "r", encoding="utf-8") as f:
               m = f.read()
