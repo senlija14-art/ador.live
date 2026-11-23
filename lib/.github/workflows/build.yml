@@ -84,6 +84,7 @@ jobs:
         working-directory: build_proj
         run: |
           flutter pub get
+          find "$HOME/.pub-cache" -type f \( -name "*.gradle" -o -name "*.gradle.kts" \) -exec sed -i 's/jcenter()/mavenCentral()/g' {} + || true
           flutter build apk --release
 
       - name: Upload Ador Live APK
