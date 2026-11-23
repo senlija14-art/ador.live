@@ -1,7 +1,7 @@
 
 name: Build Ador Live APK
 
-on:
+"on":
   push:
     branches:
       - main
@@ -29,8 +29,8 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK 37
-        run: sdkmanager "platforms;android-37"
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36"
 
       - name: Create Android Project
         run: |
@@ -39,7 +39,7 @@ jobs:
           rm -rf build_proj/lib
           cp -r lib build_proj/
 
-      - name: Configure Compile SDK 37
+      - name: Configure Android SDK
         run: |
           python3 - <<'PY'
           import re
@@ -49,42 +49,38 @@ jobs:
 
           if p.exists():
               s = p.read_text()
-              s, n = re.subn(
-                  r'(?m)^\s*compileSdk\s*=\s*.*$',
-                  '    compileSdk = 37',
-                  s,
-                  count=1
-              )
+              pattern = r'(?m)^(\s*)compileSdk\s*=\s*.*$'
+              replacement = r'\g<1>compileSdk = 36'
           else:
               p = Path("build_proj/android/app/build.gradle")
               if not p.exists():
-                  raise SystemExit("Android app Gradle file missing")
-
+                  raise SystemExit("Gradle file not found")
               s = p.read_text()
-              s, n = re.subn(
-                  r'(?m)^\s*compileSdkVersion\s+.*$',
-                  '    compileSdkVersion 37',
-                  s,
-                  count=1
-              )
+              pattern = r'(?m)^(\s*)compileSdkVersion\s+.*$'
+              replacement = r'\g<1>compileSdkVersion 36'
 
-          if n != 1:
-              raise SystemExit("Could not update compileSdk")
+          s, count = re.subn(pattern, replacement, s, count=1)
+
+          if count != 1:
+              raise SystemExit("Could not configure compileSdk 36")
 
           p.write_text(s)
-          print("SUCCESS: compileSdk set to 37")
-
+          print("SUCCESS: compileSdk = 36")
           PY
 
       - name: Install Dependencies
         working-directory: build_proj
         run: flutter pub get
 
+      - name: Verify Permission Version
+        working-directory: build_proj
+        run: flutter pub deps
+
       - name: Build Release APK
         working-directory: build_proj
         run: flutter build apk --release
 
-      - name: Upload APK
+      - name: Upload Ador Live APK
         uses: actions/upload-artifact@v4
         with:
           name: Ador-Live-APK
