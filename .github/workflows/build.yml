@@ -12,10 +12,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: zulu
@@ -26,6 +26,12 @@ jobs:
         with:
           channel: stable
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 37
+        run: sdkmanager "platforms;android-37"
+
       - name: Create Android Project
         run: |
           flutter create --org com.ador.live --project-name ador_live build_proj
@@ -33,74 +39,46 @@ jobs:
           rm -rf build_proj/lib
           cp -r lib build_proj/
 
-      - name: Install Flutter Packages
-        working-directory: build_proj
-        run: flutter pub get
-
-      - name: Repair Zego Gradle Files
+      - name: Configure Compile SDK 37
         run: |
           python3 - <<'PY'
           import re
           from pathlib import Path
 
-          files = list(Path.home().glob(
-              ".pub-cache/hosted/pub.dev/zego_zim-*/android/build.gradle"
-          ))
+          p = Path("build_proj/android/app/build.gradle.kts")
 
-          files += list(Path.home().glob(
-              ".pub-cache/hosted/pub.dev/zego_zim-*/android/build.gradle.kts"
-          ))
-
-          if not files:
-              raise SystemExit("ERROR: Zego ZIM Gradle file not found")
-
-          for p in files:
+          if p.exists():
               s = p.read_text()
+              s, n = re.subn(
+                  r'(?m)^\s*compileSdk\s*=\s*.*$',
+                  '    compileSdk = 37',
+                  s,
+                  count=1
+              )
+          else:
+              p = Path("build_proj/android/app/build.gradle")
+              if not p.exists():
+                  raise SystemExit("Android app Gradle file missing")
 
-              s = re.sub(
-                  r'\bjcenter\s*\(\s*\)',
-                  'mavenCentral()',
-                  s
+              s = p.read_text()
+              s, n = re.subn(
+                  r'(?m)^\s*compileSdkVersion\s+.*$',
+                  '    compileSdkVersion 37',
+                  s,
+                  count=1
               )
 
-              lines = s.splitlines()
+          if n != 1:
+              raise SystemExit("Could not update compileSdk")
 
-              android = [
-                  i for i, line in enumerate(lines)
-                  if re.search(
-                      r"(?:apply\s+plugin\s*:\s*|id\s*\(?\s*)['\"]com\.android\.(?:library|application)['\"]",
-                      line
-                  )
-              ]
-
-              kotlin = [
-                  i for i, line in enumerate(lines)
-                  if re.search(
-                      r"(?:apply\s+plugin\s*:\s*|id\s*\(?\s*)['\"](?:kotlin-android|org\.jetbrains\.kotlin\.android)['\"]",
-                      line
-                  )
-              ]
-
-              if kotlin and not android:
-                  lines.insert(
-                      kotlin[0],
-                      "apply plugin: 'com.android.library'"
-                  )
-
-              elif android and kotlin and android[0] > kotlin[0]:
-                  lines[android[0]], lines[kotlin[0]] = (
-                      lines[kotlin[0]], lines[android[0]]
-                  )
-
-              s = "\n".join(lines) + "\n"
-
-              if "jcenter()" in s:
-                  raise SystemExit("ERROR: jcenter still exists")
-
-              p.write_text(s)
-              print("REPAIRED:", p)
+          p.write_text(s)
+          print("SUCCESS: compileSdk set to 37")
 
           PY
+
+      - name: Install Dependencies
+        working-directory: build_proj
+        run: flutter pub get
 
       - name: Build Release APK
         working-directory: build_proj
