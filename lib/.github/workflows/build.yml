@@ -1,13 +1,16 @@
+
 name: Build Ador Live APK
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   build_apk:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -15,76 +18,82 @@ jobs:
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: zulu
           java-version: '17'
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          channel: stable
 
-      - name: Generate Android Project & Configure
+      - name: Generate Android Project
         run: |
           flutter create --org com.ador.live --project-name ador_live build_proj
           cp pubspec.yaml build_proj/
           rm -rf build_proj/lib build_proj/test
           cp -r lib build_proj/
 
-          python3 - << 'EOF'
-          import os, re
+      - name: Configure Android
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
 
-          with open('build_proj/android/app/proguard-rules.pro', 'w') as f:
-              f.write('-keep class **.zego.** { *; }\n-keep class **.**.zego_zpns.** { *; }\n')
+          root = Path("build_proj/android")
 
-          kts = 'build_proj/android/app/build.gradle.kts'
-          grv = 'build_proj/android/app/build.gradle'
-          if os.path.exists(kts):
-              with open(kts, 'r') as f:
-                  s = f.read()
-              s = re.sub(r'compileSdk\s*=\s*.*', 'compileSdk = 37', s)
-              s = re.sub(r'minSdk\s*=\s*.*', 'minSdk = 24', s)
-              s = s.replace('signingConfig = signingConfigs.getByName("debug")',
-                            'signingConfig = signingConfigs.getByName("debug")\n            isMinifyEnabled = false\n            isShrinkResources = false')
-              with open(kts, 'w') as f:
-                  f.write(s)
-          elif os.path.exists(grv):
-              with open(grv, 'r') as f:
-                  s = f.read()
-              s = re.sub(r'compileSdkVersion\s+.*', 'compileSdkVersion 37', s)
-              s = re.sub(r'compileSdk\s+.*', 'compileSdk 37', s)
-              s = re.sub(r'minSdkVersion\s+.*', 'minSdkVersion 24', s)
-              s = re.sub(r'minSdk\s+.*', 'minSdk 24', s)
-              with open(grv, 'w') as f:
-                  f.write(s)
+          for name in ["build.gradle", "build.gradle.kts"]:
+              p = root / name
+              if p.exists():
+                  s = p.read_text()
+                  s = s.replace("jcenter()", "mavenCentral()")
+                  p.write_text(s)
 
-          manifest_path = 'build_proj/android/app/src/main/AndroidManifest.xml'
-          with open(manifest_path, 'r') as f:
-              m = f.read()
-          perms = '''
-              <uses-permission android:name="android.permission.INTERNET" />
-              <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-              <uses-permission android:name="android.permission.RECORD_AUDIO" />
-              <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-              <uses-permission android:name="android.permission.BLUETOOTH" />
-              <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-              <uses-permission android:name="android.permission.CAMERA" />
-              <uses-permission android:name="android.permission.WAKE_LOCK" />
-              <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-          '''
-          m = re.sub(r'android:label="[^"]*"', 'android:label="আদর লাইভ"', m)
-          m = m.replace('<application', perms + '\n    <application', 1)
-          with open(manifest_path, 'w') as f:
-              f.write(m)
-          EOF
+          p = Path.home()
+          files = list(p.glob(
+              ".pub-cache/hosted/pub.dev/zego_zim-*/android/build.gradle"
+          ))
+
+          for f in files:
+              s = f.read_text()
+              s = re.sub(
+                  r'\bjcenter\s*\(\s*\)',
+                  'mavenCentral()',
+                  s
+              )
+
+              lines = s.splitlines()
+              android = [
+                  i for i, x in enumerate(lines)
+                  if "com.android.library" in x
+                  and ("apply plugin" in x or "id " in x)
+              ]
+              kotlin = [
+                  i for i, x in enumerate(lines)
+                  if ("kotlin-android" in x or
+                      "org.jetbrains.kotlin.android" in x)
+                  and ("apply plugin" in x or "id " in x)
+              ]
+
+              if android and kotlin and kotlin[0] < android[0]:
+                  lines[kotlin[0]], lines[android[0]] = (
+                      lines[android[0]], lines[kotlin[0]]
+                  )
+
+              f.write_text("\n".join(lines) + "\n")
+              print("Patched:", f)
+
+          app = root / "app"
+          rules = app / "proguard-rules.pro"
+          rules.write_text(
+              "-keep class **.zego.** { *; }\n"
+              "-keep class **.**.zego_zpns.** { *; }\n"
+          )
+          PY
 
       - name: Build APK
         working-directory: build_proj
         run: |
           flutter pub get
-          find "$HOME/.pub-cache" -type f \( -name "*.gradle" -o -name "*.gradle.kts" \) -exec sed -i 's/jcenter()/mavenCentral()/g' {} + || true
           flutter build apk --release
 
       - name: Upload Ador Live APK
