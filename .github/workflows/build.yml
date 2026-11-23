@@ -33,11 +33,76 @@ jobs:
           rm -rf build_proj/lib
           cp -r lib build_proj/
 
-      - name: Install Dependencies
+      - name: Install Flutter Packages
         working-directory: build_proj
         run: flutter pub get
 
-      - name: Build APK
+      - name: Repair Zego Gradle Files
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          files = list(Path.home().glob(
+              ".pub-cache/hosted/pub.dev/zego_zim-*/android/build.gradle"
+          ))
+
+          files += list(Path.home().glob(
+              ".pub-cache/hosted/pub.dev/zego_zim-*/android/build.gradle.kts"
+          ))
+
+          if not files:
+              raise SystemExit("ERROR: Zego ZIM Gradle file not found")
+
+          for p in files:
+              s = p.read_text()
+
+              s = re.sub(
+                  r'\bjcenter\s*\(\s*\)',
+                  'mavenCentral()',
+                  s
+              )
+
+              lines = s.splitlines()
+
+              android = [
+                  i for i, line in enumerate(lines)
+                  if re.search(
+                      r"(?:apply\s+plugin\s*:\s*|id\s*\(?\s*)['\"]com\.android\.(?:library|application)['\"]",
+                      line
+                  )
+              ]
+
+              kotlin = [
+                  i for i, line in enumerate(lines)
+                  if re.search(
+                      r"(?:apply\s+plugin\s*:\s*|id\s*\(?\s*)['\"](?:kotlin-android|org\.jetbrains\.kotlin\.android)['\"]",
+                      line
+                  )
+              ]
+
+              if kotlin and not android:
+                  lines.insert(
+                      kotlin[0],
+                      "apply plugin: 'com.android.library'"
+                  )
+
+              elif android and kotlin and android[0] > kotlin[0]:
+                  lines[android[0]], lines[kotlin[0]] = (
+                      lines[kotlin[0]], lines[android[0]]
+                  )
+
+              s = "\n".join(lines) + "\n"
+
+              if "jcenter()" in s:
+                  raise SystemExit("ERROR: jcenter still exists")
+
+              p.write_text(s)
+              print("REPAIRED:", p)
+
+          PY
+
+      - name: Build Release APK
         working-directory: build_proj
         run: flutter build apk --release
 
