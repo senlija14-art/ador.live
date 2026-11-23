@@ -47,18 +47,27 @@ jobs:
           rm -rf build_proj/lib
           cp -r lib build_proj/
 
-      - name: Ensure SDK Constraint in pubspec.yaml
+      - name: Fix pubspec.yaml Name and SDK Constraint
         run: |
           python3 - <<'PY'
           import re
+          import subprocess
 
-          dart_ver = re.search(r'Dart SDK version:\s*([0-9]+\.[0-9]+\.[0-9]+)', __import__('subprocess').check_output(['dart', '--version'], text=True))
+          dart_out = subprocess.check_output(['dart', '--version'], text=True)
+          dart_ver = re.search(r'Dart SDK version:\s*([0-9]+\.[0-9]+\.[0-9]+)', dart_out)
           sdk_constraint = f"^{dart_ver.group(1)}" if dart_ver else "^3.14.0"
 
           pub_path = "build_proj/pubspec.yaml"
           with open(pub_path, "r", encoding="utf-8") as f:
               text = f.read()
 
+          # Ensure valid Dart package name
+          if re.search(r'(?m)^name:\s*.+$', text):
+              text = re.sub(r'(?m)^name:\s*.+$', 'name: ador_live', text, count=1)
+          else:
+              text = "name: ador_live\n" + text
+
+          # Ensure valid SDK constraint
           if re.search(r'(?m)^environment:\s*\n(?:\s+.*\n)*?\s*sdk:\s*.+', text):
               text = re.sub(r'(?m)^(\s*sdk:\s*).+$', rf'\g<1>\'{sdk_constraint}\'', text, count=1)
           elif re.search(r'(?m)^environment:\s*$', text):
@@ -69,7 +78,7 @@ jobs:
           with open(pub_path, "w", encoding="utf-8") as f:
               f.write(text)
 
-          print("Updated SDK constraint to:", sdk_constraint)
+          print("Fixed pubspec.yaml with name: ador_live and sdk:", sdk_constraint)
           PY
 
       - name: Install Dependencies
