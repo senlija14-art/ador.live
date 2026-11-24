@@ -137,6 +137,20 @@ jobs:
                   content = content[:start] + content[end:]
               return content
 
+          def replace_jcenter(root_dir, skip_keyword=None):
+              for gfile in glob.glob(f"{root_dir}/**/*.gradle*", recursive=True):
+                  if (skip_keyword and skip_keyword in gfile) or not os.path.isfile(gfile):
+                      continue
+                  try:
+                      with open(gfile, "r", encoding="utf-8", errors="ignore") as f:
+                          content = f.read()
+                      updated = re.sub(r'\bjcenter\(\)', 'mavenCentral()', content)
+                      if updated != content:
+                          with open(gfile, "w", encoding="utf-8") as f:
+                              f.write(updated)
+                  except Exception:
+                      pass
+
           pub_cache = os.path.expanduser("~/.pub-cache")
           if os.path.exists(pub_cache):
               for zgradle in glob.glob(f"{pub_cache}/**/zego_zim*/android/build.gradle", recursive=True):
@@ -159,23 +173,90 @@ jobs:
 
                   with open(zgradle, "w", encoding="utf-8") as f:
                       f.write(zc)
-                  print("Patched zego_zim gradle safely:", zgradle)
+                  print("Patched zego_zim gradle:", zgradle)
 
-              for gfile in glob.glob(f"{pub_cache}/**/*.gradle*", recursive=True):
-                  if "zego_zim" in gfile or not os.path.isfile(gfile):
-                      continue
-                  try:
-                      with open(gfile, "r", encoding="utf-8", errors="ignore") as f:
-                          content = f.read()
-                      updated = re.sub(r'\bjcenter\(\)', 'mavenCentral()', content)
-                      if updated != content:
-                          with open(gfile, "w", encoding="utf-8") as f:
-                              f.write(updated)
-                  except Exception:
-                      pass
+              replace_jcenter(pub_cache, skip_keyword="zego_zim")
 
-          for gfile in glob.glob("build_proj/android/**/*.gradle*", recursive=True):
-              if not os.path.isfile(gfile):
-                  continue
-              try:
-                  with open(gfile, "r", encoding="utf-
+          replace_jcenter("build_proj/android")
+
+          base = "build_proj/android/app/"
+          path = base + "build.gradle.kts" if os.path.exists(base + "build.gradle.kts") else base + "build.gradle"
+          if not os.path.exists(path):
+              raise Exception("Android app Gradle file not found")
+
+          with open(path, "r", encoding="utf-8") as f:
+              s = f.read()
+
+          if path.endswith(".kts"):
+              s = re.sub(r'(?m)^([ \t]*compileSdk\s*=\s*).*$', rf'\g<1>{compile_target_sdk}', s)
+              s = re.sub(r'(?m)^([ \t]*targetSdk\s*=\s*).*$', rf'\g<1>{compile_target_sdk}', s)
+              s = re.sub(r'(?m)^([ \t]*minSdk\s*=\s*).*$', rf'\g<1>{min_sdk}', s)
+          else:
+              s = re.sub(r'(?m)^([ \t]*compileSdkVersion\s+).*$', rf'\g<1>{compile_target_sdk}', s)
+              s = re.sub(r'(?m)^([ \t]*compileSdk\s+).*$', rf'\g<1>{compile_target_sdk}', s)
+              s = re.sub(r'(?m)^([ \t]*targetSdkVersion\s+).*$', rf'\g<1>{compile_target_sdk}', s)
+              s = re.sub(r'(?m)^([ \t]*targetSdk\s+).*$', rf'\g<1>{compile_target_sdk}', s)
+              s = re.sub(r'(?m)^([ \t]*minSdkVersion\s+).*$', rf'\g<1>{min_sdk}', s)
+              s = re.sub(r'(?m)^([ \t]*minSdk\s+).*$', rf'\g<1>{min_sdk}', s)
+
+          with open(path, "w", encoding="utf-8") as f:
+              f.write(s)
+
+          manifest = "build_proj/android/app/src/main/AndroidManifest.xml"
+          with open(manifest, "r", encoding="utf-8") as f:
+              m = f.read()
+
+          perms = [
+              ('android.permission.INTERNET', '<uses-permission android:name="android.permission.INTERNET"/>'),
+              ('android.permission.ACCESS_NETWORK_STATE', '<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>'),
+              ('android.permission.ACCESS_WIFI_STATE', '<uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>'),
+              ('android.permission.RECORD_AUDIO', '<uses-permission android:name="android.permission.RECORD_AUDIO"/>'),
+              ('android.permission.MODIFY_AUDIO_SETTINGS', '<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>'),
+              ('android.permission.CAMERA', '<uses-permission android:name="android.permission.CAMERA"/>'),
+              ('android.permission.BLUETOOTH"', '<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>'),
+              ('android.permission.BLUETOOTH_CONNECT', '<uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>'),
+              ('android.permission.WAKE_LOCK', '<uses-permission android:name="android.permission.WAKE_LOCK"/>'),
+              ('android.permission.READ_MEDIA_IMAGES', '<uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>'),
+              ('android.permission.READ_EXTERNAL_STORAGE', '<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>'),
+          ]
+
+          missing = [f"    {tag}" for key, tag in perms if key not in m]
+          if missing:
+              m = re.sub(
+                  r'(?m)^[ \t]*<application\b',
+                  "\n".join(missing) + "\n\n    <application",
+                  m,
+                  count=1
+              )
+
+          m = re.sub(
+              r'(<application\b[^>]*?\bandroid:label=")[^"]*(")',
+              r'\g<1>আদর লাইভ\g<2>',
+              m,
+              count=1,
+              flags=re.DOTALL
+          )
+
+          with open(manifest, "w", encoding="utf-8") as f:
+              f.write(m)
+
+          print("Android configuration completed successfully")
+          PY
+
+      - name: Verify Android SDK
+        working-directory: build_proj
+        run: |
+          grep -nE "compileSdk|targetSdk|minSdk" android/app/build.gradle* || true
+          flutter doctor -v
+
+      - name: Build Release APK
+        working-directory: build_proj
+        run: |
+          flutter build apk --release
+
+      - name: Upload Ador Live APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ador-Live-APK
+          path: build_proj/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
