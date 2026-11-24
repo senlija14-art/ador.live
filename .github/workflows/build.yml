@@ -48,8 +48,6 @@ jobs:
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
           set -o pipefail
 
-          ls -la "$ANDROID_SDK/platforms"
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -146,20 +144,7 @@ jobs:
                   content = content[:start] + content[end:]
               return content
 
-          def replace_jcenter(root_dir, skip_keyword=None):
-              for gfile in glob.glob(f"{root_dir}/**/*.gradle*", recursive=True):
-                  if (skip_keyword and skip_keyword in gfile) or not os.path.isfile(gfile):
-                      continue
-                  try:
-                      with open(gfile, "r", encoding="utf-8", errors="ignore") as f:
-                          content = f.read()
-                      updated = re.sub(r'\bjcenter\(\)', 'mavenCentral()', content)
-                      if updated != content:
-                          with open(gfile, "w", encoding="utf-8") as f:
-                              f.write(updated)
-                  except Exception:
-                      pass
-
+          # 1. Patch ALL cached plugins (compileSdk -> 37, jcenter -> mavenCentral, zego_zim fixes)
           pub_cache = os.path.expanduser("~/.pub-cache")
           if os.path.exists(pub_cache):
               for zgradle in glob.glob(f"{pub_cache}/**/zego_zim*/android/build.gradle", recursive=True):
@@ -184,10 +169,68 @@ jobs:
                       f.write(zc)
                   print("Patched zego_zim gradle:", zgradle)
 
-              replace_jcenter(pub_cache, skip_keyword="zego_zim")
+              for gfile in glob.glob(f"{pub_cache}/**/*.gradle*", recursive=True):
+                  if "zego_zim" in gfile or not os.path.isfile(gfile):
+                      continue
+                  try:
+                      with open(gfile, "r", encoding="utf-8", errors="ignore") as f:
+                          content = f.read()
+                      updated = re.sub(r'\bjcenter\(\)', 'mavenCentral()', content)
+                      updated = re.sub(
+                          r'(?m)^([ \t]*compileSdk(?:Version)?\s*=?\s*)(?:2[0-9]|3[0-6])\b',
+                          rf'\g<1>{compile_sdk}',
+                          updated
+                      )
+                      if updated != content:
+                          with open(gfile, "w", encoding="utf-8") as f:
+                              f.write(updated)
+                  except Exception:
+                      pass
 
-          replace_jcenter("build_proj/android")
+          # 2. Force compileSdk = 37 on ALL plugin subprojects via root android/build.gradle.kts
+          root_kts = "build_proj/android/build.gradle.kts"
+          if os.path.exists(root_kts):
+              with open(root_kts, "r", encoding="utf-8") as f:
+                  rg = f.read()
+              sub_fix = "\n".join([
+                  "subprojects {",
+                  "    afterEvaluate {",
+                  '        val androidExt = extensions.findByName("android")',
+                  "        if (androidExt is com.android.build.api.dsl.LibraryExtension) {",
+                  f"            androidExt.compileSdk = {compile_sdk}",
+                  "            if (androidExt.namespace.isNullOrEmpty()) {",
+                  '                androidExt.namespace = "com.ador.plugin." + project.name.replace(Regex("[^a-zA-Z0-9_]"), "_")',
+                  "            }",
+                  "        }",
+                  "    }",
+                  "}",
+                  "",
+              ])
+              if "com.android.build.api.dsl.LibraryExtension" not in rg:
+                  m_eval = re.search(r'(?m)^subprojects\s*\{\s*\n\s*project\.evaluationDependsOn\(":app"\)', rg)
+                  if m_eval:
+                      rg = rg[:m_eval.start()] + sub_fix + rg[m_eval.start():]
+                  else:
+                      rg = rg + "\n" + sub_fix
+                  with open(root_kts, "w", encoding="utf-8") as f:
+                      f.write(rg)
+                  print("Patched root build.gradle.kts for all subprojects")
 
+          # 3. Clean jcenter() in build_proj gradle files
+          for gfile in glob.glob("build_proj/android/**/*.gradle*", recursive=True):
+              if not os.path.isfile(gfile):
+                  continue
+              try:
+                  with open(gfile, "r", encoding="utf-8", errors="ignore") as f:
+                      content = f.read()
+                  updated = re.sub(r'\bjcenter\(\)', 'mavenCentral()', content)
+                  if updated != content:
+                      with open(gfile, "w", encoding="utf-8") as f:
+                          f.write(updated)
+              except Exception:
+                  pass
+
+          # 4. Update app build.gradle / build.gradle.kts
           base = "build_proj/android/app/"
           path = base + "build.gradle.kts" if os.path.exists(base + "build.gradle.kts") else base + "build.gradle"
           if not os.path.exists(path):
@@ -211,6 +254,7 @@ jobs:
           with open(path, "w", encoding="utf-8") as f:
               f.write(s)
 
+          # 5. Update AndroidManifest.xml
           manifest = "build_proj/android/app/src/main/AndroidManifest.xml"
           with open(manifest, "r", encoding="utf-8") as f:
               m = f.read()
