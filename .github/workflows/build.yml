@@ -23,7 +23,7 @@ jobs:
           distribution: zulu
           java-version: '17'
 
-      - name: Setup Android SDK 36
+      - name: Setup Android SDK 37
         run: |
           ANDROID_SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           SDKMANAGER="$ANDROID_SDK/cmdline-tools/latest/bin/sdkmanager"
@@ -38,9 +38,17 @@ jobs:
 
           set +o pipefail
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
-          yes | "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+          yes | "$SDKMANAGER" --install "platforms;android-37" "build-tools;36.0.0" "platform-tools" || true
+          if [ ! -d "$ANDROID_SDK/platforms/android-37" ]; then
+            yes | "$SDKMANAGER" --install "platforms;android-37.0" || true
+            if [ -d "$ANDROID_SDK/platforms/android-37.0" ] && [ ! -e "$ANDROID_SDK/platforms/android-37" ]; then
+              ln -sfn "$ANDROID_SDK/platforms/android-37.0" "$ANDROID_SDK/platforms/android-37"
+            fi
+          fi
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
           set -o pipefail
+
+          ls -la "$ANDROID_SDK/platforms"
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -111,7 +119,8 @@ jobs:
           import re
           import glob
 
-          compile_target_sdk = 36
+          compile_sdk = 37
+          target_sdk = 36
           min_sdk = 24
 
           def remove_clean_task(content):
@@ -160,7 +169,7 @@ jobs:
                   zc = re.sub(r'\bjcenter\(\)', 'mavenCentral()', zc)
                   zc = remove_clean_task(zc)
                   zc = re.sub(r'JavaVersion\.VERSION_1_8|JavaVersion\.VERSION_11', 'JavaVersion.VERSION_17', zc)
-                  zc = re.sub(r'(?m)^(\s*compileSdk(?:Version)?\s*=?\s*).*$', rf'\g<1>{compile_target_sdk}', zc)
+                  zc = re.sub(r'(?m)^(\s*compileSdk(?:Version)?\s*=?\s*).*$', rf'\g<1>{compile_sdk}', zc)
                   zc = re.sub(r'(?m)^(\s*minSdk(?:Version)?\s*=?\s*).*$', rf'\g<1>{min_sdk}', zc)
 
                   if "namespace" not in zc:
@@ -188,14 +197,14 @@ jobs:
               s = f.read()
 
           if path.endswith(".kts"):
-              s = re.sub(r'(?m)^([ \t]*compileSdk\s*=\s*).*$', rf'\g<1>{compile_target_sdk}', s)
-              s = re.sub(r'(?m)^([ \t]*targetSdk\s*=\s*).*$', rf'\g<1>{compile_target_sdk}', s)
+              s = re.sub(r'(?m)^([ \t]*compileSdk\s*=\s*).*$', rf'\g<1>{compile_sdk}', s)
+              s = re.sub(r'(?m)^([ \t]*targetSdk\s*=\s*).*$', rf'\g<1>{target_sdk}', s)
               s = re.sub(r'(?m)^([ \t]*minSdk\s*=\s*).*$', rf'\g<1>{min_sdk}', s)
           else:
-              s = re.sub(r'(?m)^([ \t]*compileSdkVersion\s+).*$', rf'\g<1>{compile_target_sdk}', s)
-              s = re.sub(r'(?m)^([ \t]*compileSdk\s+).*$', rf'\g<1>{compile_target_sdk}', s)
-              s = re.sub(r'(?m)^([ \t]*targetSdkVersion\s+).*$', rf'\g<1>{compile_target_sdk}', s)
-              s = re.sub(r'(?m)^([ \t]*targetSdk\s+).*$', rf'\g<1>{compile_target_sdk}', s)
+              s = re.sub(r'(?m)^([ \t]*compileSdkVersion\s+).*$', rf'\g<1>{compile_sdk}', s)
+              s = re.sub(r'(?m)^([ \t]*compileSdk\s+).*$', rf'\g<1>{compile_sdk}', s)
+              s = re.sub(r'(?m)^([ \t]*targetSdkVersion\s+).*$', rf'\g<1>{target_sdk}', s)
+              s = re.sub(r'(?m)^([ \t]*targetSdk\s+).*$', rf'\g<1>{target_sdk}', s)
               s = re.sub(r'(?m)^([ \t]*minSdkVersion\s+).*$', rf'\g<1>{min_sdk}', s)
               s = re.sub(r'(?m)^([ \t]*minSdk\s+).*$', rf'\g<1>{min_sdk}', s)
 
