@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:zego_uikit/zego_uikit.dart';
 import 'package:zego_uikit_prebuilt_live_audio_room/zego_uikit_prebuilt_live_audio_room.dart';
 
 const int zegoAppID = 1215236018;
@@ -1569,7 +1570,7 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
   }
 
   void _openGiftSheet({String? preselectedUserId}) {
-    final users = ZegoUIKitPrebuiltLiveAudioRoomController().user.getAllUsers();
+    final users = ZegoUIKit().getAllUsers();
     String? targetId = preselectedUserId ??
         (users.isNotEmpty ? users.first.id : widget.myProfile['id']);
     GiftItem selectedGift = appGifts.first;
@@ -1745,7 +1746,7 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
   }
 
   void _openRoomUsersSheet() {
-    final users = ZegoUIKitPrebuiltLiveAudioRoomController().user.getAllUsers();
+    final users = ZegoUIKit().getAllUsers();
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1D0D3B),
