@@ -24,16 +24,23 @@ jobs:
           java-version: '17'
 
       - name: Setup Android SDK 36
-        uses: android-actions/setup-android@v4
-        with:
-          packages: |
-            platform-tools
-            platforms;android-36
-            build-tools;36.0.0
-
-      - name: Accept Android Licenses
         run: |
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          ANDROID_SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$ANDROID_SDK/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER=$(find "$ANDROID_SDK/cmdline-tools" -name sdkmanager -type f | head -n 1)
+          fi
+
+          echo "ANDROID_HOME=$ANDROID_SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK" >> "$GITHUB_ENV"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          echo "$ANDROID_SDK/platform-tools" >> "$GITHUB_PATH"
+
+          set +o pipefail
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          yes | "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          set -o pipefail
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -61,20 +68,17 @@ jobs:
           with open(pub_path, "r", encoding="utf-8") as f:
               text = f.read()
 
-          # Update package name safely
           if re.search(r'(?m)^name:\s*.+$', text):
               text = re.sub(r'(?m)^name:\s*.+$', 'name: ador_live', text, count=1)
           else:
               text = "name: ador_live\n" + text
 
-          # Update sdk constraint ONLY inside the environment block
           env_pattern = re.compile(r'(?ms)^environment:\s*\n(?:[ \t]+.*\n?)*')
           env_match = env_pattern.search(text)
 
           if env_match:
               env_block = env_match.group(0)
               if re.search(r'(?m)^[ \t]+sdk:\s*.+$', env_block):
-                  # Keep existing Dart 3 constraint if already valid, otherwise update
                   sdk_val_match = re.search(r'(?m)^[ \t]+sdk:\s*["\']?([^"\'\n]+)', env_block)
                   sdk_val = sdk_val_match.group(1).strip() if sdk_val_match else ""
                   if not re.search(r'(\^3\.|>=\s*3\.)', sdk_val):
@@ -111,7 +115,6 @@ jobs:
           min_sdk = 24
 
           def remove_clean_task(content):
-              # Remove duplicate 'task clean' or 'tasks.register("clean"...)' blocks safely
               pattern = re.compile(r'(?m)^[ \t]*(?:task\s+clean\b|tasks\.register\s*\(\s*["\']clean["\'])')
               while True:
                   m = pattern.search(content)
@@ -134,7 +137,6 @@ jobs:
                   content = content[:start] + content[end:]
               return content
 
-          # 1. Non-destructively patch zego_zim build.gradle (preserve dependencies & sourceSets)
           pub_cache = os.path.expanduser("~/.pub-cache")
           if os.path.exists(pub_cache):
               for zgradle in glob.glob(f"{pub_cache}/**/zego_zim*/android/build.gradle", recursive=True):
@@ -159,7 +161,6 @@ jobs:
                       f.write(zc)
                   print("Patched zego_zim gradle safely:", zgradle)
 
-              # Replace jcenter() with mavenCentral() in other cached gradle files
               for gfile in glob.glob(f"{pub_cache}/**/*.gradle*", recursive=True):
                   if "zego_zim" in gfile or not os.path.isfile(gfile):
                       continue
@@ -173,107 +174,8 @@ jobs:
                   except Exception:
                       pass
 
-          # 2. Clean jcenter() in build_proj gradle files
           for gfile in glob.glob("build_proj/android/**/*.gradle*", recursive=True):
               if not os.path.isfile(gfile):
                   continue
               try:
-                  with open(gfile, "r", encoding="utf-8", errors="ignore") as f:
-                      content = f.read()
-                  updated = re.sub(r'\bjcenter\(\)', 'mavenCentral()', content)
-                  if updated != content:
-                      with open(gfile, "w", encoding="utf-8") as f:
-                          f.write(updated)
-              except Exception:
-                  pass
-
-          # 3. Update app build.gradle / build.gradle.kts
-          base = "build_proj/android/app/"
-          kts = base + "build.gradle.kts"
-          groovy = base + "build.gradle"
-
-          if os.path.exists(kts):
-              path = kts
-          elif os.path.exists(groovy):
-              path = groovy
-          else:
-              raise Exception("Android app Gradle file not found")
-
-          with open(path, "r", encoding="utf-8") as f:
-              s = f.read()
-
-          if path.endswith(".kts"):
-              s = re.sub(r'(?m)^([ \t]*compileSdk\s*=\s*).*$', rf'\g<1>{compile_target_sdk}', s)
-              s = re.sub(r'(?m)^([ \t]*targetSdk\s*=\s*).*$', rf'\g<1>{compile_target_sdk}', s)
-              s = re.sub(r'(?m)^([ \t]*minSdk\s*=\s*).*$', rf'\g<1>{min_sdk}', s)
-          else:
-              s = re.sub(r'(?m)^([ \t]*compileSdkVersion\s+).*$', rf'\g<1>{compile_target_sdk}', s)
-              s = re.sub(r'(?m)^([ \t]*compileSdk\s+).*$', rf'\g<1>{compile_target_sdk}', s)
-              s = re.sub(r'(?m)^([ \t]*targetSdkVersion\s+).*$', rf'\g<1>{compile_target_sdk}', s)
-              s = re.sub(r'(?m)^([ \t]*targetSdk\s+).*$', rf'\g<1>{compile_target_sdk}', s)
-              s = re.sub(r'(?m)^([ \t]*minSdkVersion\s+).*$', rf'\g<1>{min_sdk}', s)
-              s = re.sub(r'(?m)^([ \t]*minSdk\s+).*$', rf'\g<1>{min_sdk}', s)
-
-          with open(path, "w", encoding="utf-8") as f:
-              f.write(s)
-
-          # 4. Update AndroidManifest.xml (check each permission individually)
-          manifest = "build_proj/android/app/src/main/AndroidManifest.xml"
-          with open(manifest, "r", encoding="utf-8") as f:
-              m = f.read()
-
-          required_permissions = [
-              ('android.permission.INTERNET', '<uses-permission android:name="android.permission.INTERNET"/>'),
-              ('android.permission.ACCESS_NETWORK_STATE', '<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>'),
-              ('android.permission.ACCESS_WIFI_STATE', '<uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>'),
-              ('android.permission.RECORD_AUDIO', '<uses-permission android:name="android.permission.RECORD_AUDIO"/>'),
-              ('android.permission.MODIFY_AUDIO_SETTINGS', '<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>'),
-              ('android.permission.CAMERA', '<uses-permission android:name="android.permission.CAMERA"/>'),
-              ('android.permission.BLUETOOTH"', '<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>'),
-              ('android.permission.BLUETOOTH_CONNECT', '<uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>'),
-              ('android.permission.WAKE_LOCK', '<uses-permission android:name="android.permission.WAKE_LOCK"/>'),
-              ('android.permission.READ_MEDIA_IMAGES', '<uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>'),
-              ('android.permission.READ_EXTERNAL_STORAGE', '<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>'),
-          ]
-
-          missing_lines = []
-          for perm_key, perm_tag in required_permissions:
-              if perm_key not in m:
-                  missing_lines.append(f"    {perm_tag}")
-
-          if missing_lines:
-              perm_block = "\n".join(missing_lines) + "\n\n    <application"
-              m = m.replace("<application", perm_block, 1)
-
-          # Update application label
-          m = re.sub(
-              r'(<application\b[^>]*?\bandroid:label=")[^"]*(")',
-              r'\1আদর লাইভ\2',
-              m,
-              count=1,
-              flags=re.DOTALL
-          )
-
-          with open(manifest, "w", encoding="utf-8") as f:
-              f.write(m)
-
-          print("Android configuration completed successfully")
-          PY
-
-      - name: Verify Android SDK
-        working-directory: build_proj
-        run: |
-          grep -nE "compileSdk|targetSdk|minSdk" android/app/build.gradle* || true
-          flutter doctor -v
-
-      - name: Build Release APK
-        working-directory: build_proj
-        run: |
-          flutter build apk --release
-
-      - name: Upload Ador Live APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Ador-Live-APK
-          path: build_proj/build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error
+                  with open(gfile, "r", encoding="utf-
