@@ -239,7 +239,7 @@ jobs:
               except Exception:
                   pass
 
-          # 4. Update app build.gradle / build.gradle.kts + disable release lint
+          # 4. Update app build.gradle / build.gradle.kts: disable R8/minify + disable release lint
           base = "build_proj/android/app/"
           path = base + "build.gradle.kts" if os.path.exists(base + "build.gradle.kts") else base + "build.gradle"
           if not os.path.exists(path):
@@ -259,6 +259,15 @@ jobs:
                       s,
                       count=1
                   )
+              s = re.sub(r'(?m)^([ \t]*isMinifyEnabled\s*=\s*)true\b', r'\g<1>false', s)
+              s = re.sub(r'(?m)^([ \t]*isShrinkResources\s*=\s*)true\b', r'\g<1>false', s)
+              if "isMinifyEnabled" not in s:
+                  s = re.sub(
+                      r'(?m)^([ \t]*(?:release|getByName\(["\']release["\']\))\s*\{\s*\n)',
+                      r'\1            isMinifyEnabled = false\n            isShrinkResources = false\n',
+                      s,
+                      count=1
+                  )
           else:
               s = re.sub(r'(?m)^([ \t]*compileSdkVersion\s+).*$', rf'\g<1>{compile_sdk}', s)
               s = re.sub(r'(?m)^([ \t]*compileSdk\s+).*$', rf'\g<1>{compile_sdk}', s)
@@ -273,9 +282,30 @@ jobs:
                       s,
                       count=1
                   )
+              s = re.sub(r'(?m)^([ \t]*minifyEnabled\s+)true\b', r'\g<1>false', s)
+              s = re.sub(r'(?m)^([ \t]*shrinkResources\s+)true\b', r'\g<1>false', s)
+              if "minifyEnabled" not in s:
+                  s = re.sub(
+                      r'(?m)^([ \t]*release\s*\{\s*\n)',
+                      r'\1            minifyEnabled false\n            shrinkResources false\n',
+                      s,
+                      count=1
+                  )
 
           with open(path, "w", encoding="utf-8") as f:
               f.write(s)
+
+          # Add ProGuard keep rules as extra safeguard
+          proguard_path = base + "proguard-rules.pro"
+          proguard_rules = "\n".join([
+              "-keep class **.zego.** { *; }",
+              "-keep class **.**.zego_zpns.** { *; }",
+              "-keep class im.zego.** { *; }",
+              "-keep class * extends androidx.room.RoomDatabase { void <init>(); }",
+              "",
+          ])
+          with open(proguard_path, "w", encoding="utf-8") as f:
+              f.write(proguard_rules)
 
           # 5. Update AndroidManifest.xml
           manifest = "build_proj/android/app/src/main/AndroidManifest.xml"
@@ -322,7 +352,7 @@ jobs:
       - name: Verify Android SDK
         working-directory: build_proj
         run: |
-          grep -nE "compileSdk|targetSdk|minSdk" android/app/build.gradle* || true
+          cat android/app/build.gradle*
           flutter doctor -v
 
       - name: Build Release APK
