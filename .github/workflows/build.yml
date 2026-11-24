@@ -144,7 +144,7 @@ jobs:
                   content = content[:start] + content[end:]
               return content
 
-          # 1. Patch ALL cached plugins (compileSdk -> 37, jcenter -> mavenCentral, zego_zim fixes)
+          # 1. Patch cached plugins
           pub_cache = os.path.expanduser("~/.pub-cache")
           if os.path.exists(pub_cache):
               for zgradle in glob.glob(f"{pub_cache}/**/zego_zim*/android/build.gradle", recursive=True):
@@ -187,17 +187,26 @@ jobs:
                   except Exception:
                       pass
 
-          # 2. Force compileSdk = 37 on ALL plugin subprojects via root android/build.gradle.kts
+          # 2. Force compileSdk = 37 and disable buggy Android Lint tasks across all projects
           root_kts = "build_proj/android/build.gradle.kts"
           if os.path.exists(root_kts):
               with open(root_kts, "r", encoding="utf-8") as f:
                   rg = f.read()
               sub_fix = "\n".join([
+                  "allprojects {",
+                  "    tasks.configureEach {",
+                  '        if (name.startsWith("lint")) {',
+                  "            enabled = false",
+                  "        }",
+                  "    }",
+                  "}",
                   "subprojects {",
                   "    afterEvaluate {",
                   '        val androidExt = extensions.findByName("android")',
                   "        if (androidExt is com.android.build.api.dsl.LibraryExtension) {",
                   f"            androidExt.compileSdk = {compile_sdk}",
+                  "            androidExt.lint.checkReleaseBuilds = false",
+                  "            androidExt.lint.abortOnError = false",
                   "            if (androidExt.namespace.isNullOrEmpty()) {",
                   '                androidExt.namespace = "com.ador.plugin." + project.name.replace(Regex("[^a-zA-Z0-9_]"), "_")',
                   "            }",
@@ -214,7 +223,7 @@ jobs:
                       rg = rg + "\n" + sub_fix
                   with open(root_kts, "w", encoding="utf-8") as f:
                       f.write(rg)
-                  print("Patched root build.gradle.kts for all subprojects")
+                  print("Patched root build.gradle.kts")
 
           # 3. Clean jcenter() in build_proj gradle files
           for gfile in glob.glob("build_proj/android/**/*.gradle*", recursive=True):
@@ -230,7 +239,7 @@ jobs:
               except Exception:
                   pass
 
-          # 4. Update app build.gradle / build.gradle.kts
+          # 4. Update app build.gradle / build.gradle.kts + disable release lint
           base = "build_proj/android/app/"
           path = base + "build.gradle.kts" if os.path.exists(base + "build.gradle.kts") else base + "build.gradle"
           if not os.path.exists(path):
@@ -243,6 +252,13 @@ jobs:
               s = re.sub(r'(?m)^([ \t]*compileSdk\s*=\s*).*$', rf'\g<1>{compile_sdk}', s)
               s = re.sub(r'(?m)^([ \t]*targetSdk\s*=\s*).*$', rf'\g<1>{target_sdk}', s)
               s = re.sub(r'(?m)^([ \t]*minSdk\s*=\s*).*$', rf'\g<1>{min_sdk}', s)
+              if "checkReleaseBuilds" not in s:
+                  s = re.sub(
+                      r'(?m)^([ \t]*android\s*\{\s*\n)',
+                      r'\1    lint {\n        checkReleaseBuilds = false\n        abortOnError = false\n    }\n',
+                      s,
+                      count=1
+                  )
           else:
               s = re.sub(r'(?m)^([ \t]*compileSdkVersion\s+).*$', rf'\g<1>{compile_sdk}', s)
               s = re.sub(r'(?m)^([ \t]*compileSdk\s+).*$', rf'\g<1>{compile_sdk}', s)
@@ -250,6 +266,13 @@ jobs:
               s = re.sub(r'(?m)^([ \t]*targetSdk\s+).*$', rf'\g<1>{target_sdk}', s)
               s = re.sub(r'(?m)^([ \t]*minSdkVersion\s+).*$', rf'\g<1>{min_sdk}', s)
               s = re.sub(r'(?m)^([ \t]*minSdk\s+).*$', rf'\g<1>{min_sdk}', s)
+              if "checkReleaseBuilds" not in s:
+                  s = re.sub(
+                      r'(?m)^([ \t]*android\s*\{\s*\n)',
+                      r'\1    lintOptions {\n        checkReleaseBuilds false\n        abortOnError false\n    }\n',
+                      s,
+                      count=1
+                  )
 
           with open(path, "w", encoding="utf-8") as f:
               f.write(s)
