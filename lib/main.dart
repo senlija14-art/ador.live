@@ -618,9 +618,9 @@ class _MainShellState extends State<MainShell> {
         children: [
           _buildLiveRoomsTab(),
           _buildFollowingTab(),
-          _buildProfileTab(),
+           ProfilePage(profile: myProfile),
         ],
-      ),
+         ),
       floatingActionButton: _tab == 0
           ? FloatingActionButton.extended(
               backgroundColor: Colors.pinkAccent,
