@@ -2,262 +2,149 @@
 import 'package:flutter/material.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final Map<String, dynamic>? profile;
+
+  const ProfilePage({super.key, this.profile});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  int selectedTab = 3;
-
-  final Color bg = const Color(0xFF001F19);
-  final Color cyan = const Color(0xFF00D6CE);
+  final Color bg = const Color(0xFF100026);
+  final Color purple = const Color(0xFF7500D9);
+  final Color pink = const Color(0xFFFF159F);
+  final Color gold = const Color(0xFFFFC629);
 
   void showMessage(String name) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$name Coming Soon')),
+      SnackBar(
+        content: Text('$name - Coming Soon'),
+        backgroundColor: purple,
+      ),
     );
   }
 
-  Widget menuItem(IconData icon, String name) {
+  String getValue(String key, String fallback) {
+    final value = widget.profile?[key];
+    if (value == null || value.toString().isEmpty) return fallback;
+    return value.toString();
+  }
+
+  Widget actionItem(IconData icon, String title, Color color) {
     return InkWell(
-      onTap: () => showMessage(name),
+      onTap: () => showMessage(title),
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        height: 112,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF35005F), Color(0xFF1D0640)],
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: purple, width: 1.5),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 35),
+            const SizedBox(height: 9),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget menuItem(IconData icon, String title, {String? badge}) {
+    return InkWell(
+      onTap: () => showMessage(title),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 17, horizontal: 16),
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Color(0xFF382052)),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.pinkAccent, size: 25),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+            if (badge != null)
+              Text(
+                badge,
+                style: TextStyle(
+                  color: gold,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right, color: Colors.white70),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget statItem(String number, String label, Color color) {
+    return Expanded(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: cyan, size: 37),
-          const SizedBox(height: 9),
+          Icon(Icons.people, color: color, size: 27),
+          const SizedBox(height: 7),
           Text(
-            name,
-            textAlign: TextAlign.center,
+            number,
             style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
             ),
           ),
+          Text(label, style: const TextStyle(color: Colors.white70)),
         ],
       ),
     );
   }
 
-  Widget menuCard(List<Widget> children) {
-    return Container(
-      height: 125,
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF193D36),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white70,
-          width: 1.3,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: children.map((item) {
-          return Expanded(child: item);
-        }).toList(),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: bg,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
+  Widget balanceBox(IconData icon, String amount, String title, Color color) {
+    return Expanded(
+      child: InkWell(
+        onTap: () => showMessage(title),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.only(
-                        top: 35,
-                        bottom: 25,
-                      ),
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Color(0xFF064B2A),
-                            Color(0xFF001F19),
-                          ],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          const Text(
-                            '✨  🏮  👑  🏮  ✨',
-                            style: TextStyle(fontSize: 27),
-                          ),
-                          const SizedBox(height: 20),
-
-                          const CircleAvatar(
-                            radius: 57,
-                            backgroundColor: Colors.amber,
-                            child: CircleAvatar(
-                              radius: 53,
-                              backgroundColor: Color(0xFF31534A),
-                              child: Icon(
-                                Icons.person,
-                                size: 65,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 15),
-
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text(
-                                'আদর',
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: () =>
-                                    showMessage('Edit Profile'),
-                                icon: const Icon(
-                                  Icons.edit,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const Text(
-                            'ID:136433',
-                            style: TextStyle(
-                              fontSize: 20,
-                              color: Colors.white,
-                            ),
-                          ),
-
-                          const SizedBox(height: 35),
-
-                          const Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceAround,
-                            children: [
-                              _Stat(number: '54', label: 'Visitors'),
-                              _Stat(number: '25', label: 'Following'),
-                              _Stat(number: '18', label: 'Followers'),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                      ),
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 12),
-
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _VipCard(
-                                  title: 'VIP',
-                                  color: Colors.deepPurple,
-                                  icon: Icons.shield,
-                                ),
-                              ),
-                              const SizedBox(width: 15),
-                              Expanded(
-                                child: _VipCard(
-                                  title: 'SVIP',
-                                  color: Colors.deepOrange,
-                                  icon: Icons.diamond,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          menuCard([
-                            menuItem(Icons.account_balance_wallet, 'Wallet'),
-                            menuItem(Icons.store, 'Store'),
-                            menuItem(Icons.backpack, 'Bag'),
-                            menuItem(Icons.card_giftcard, 'Reward'),
-                          ]),
-
-                          menuCard([
-                            menuItem(Icons.account_circle, 'Host Center'),
-                            menuItem(Icons.people, 'Family'),
-                            menuItem(Icons.favorite, 'CP'),
-                            menuItem(Icons.groups, 'Brother and'),
-                          ]),
-
-                          menuCard([
-                            menuItem(Icons.person_add, 'Invite Friend'),
-                            menuItem(Icons.call, 'Contact us'),
-                            menuItem(Icons.workspace_premium, 'Level'),
-                            menuItem(Icons.settings, 'Setting'),
-                          ]),
-
-                          const SizedBox(height: 20),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            Container(
-              height: 82,
-              decoration: const BoxDecoration(
-                color: Color(0xFF063A2C),
-                border: Border(
-                  top: BorderSide(
-                    color: Colors.amber,
-                    width: 1.5,
-                  ),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+            Icon(icon, color: color, size: 38),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _BottomItem(
-                    icon: Icons.home,
-                    title: 'Room',
-                    selected: selectedTab == 0,
-                    onTap: () => setState(() => selectedTab = 0),
+                  Text(
+                    amount,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  _BottomItem(
-                    icon: Icons.stars,
-                    title: 'Moment',
-                    selected: selectedTab == 1,
-                    onTap: () => setState(() => selectedTab = 1),
-                  ),
-                  _BottomItem(
-                    icon: Icons.message,
-                    title: 'Message',
-                    selected: selectedTab == 2,
-                    onTap: () => setState(() => selectedTab = 2),
-                  ),
-                  _BottomItem(
-                    icon: Icons.person,
-                    title: 'Me',
-                    selected: selectedTab == 3,
-                    onTap: () => setState(() => selectedTab = 3),
-                  ),
+                  Text(title, style: const TextStyle(color: Colors.white70)),
                 ],
               ),
             ),
@@ -266,106 +153,351 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
-}
-
-class _Stat extends StatelessWidget {
-  final String number;
-  final String label;
-
-  const _Stat({required this.number, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(number,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 25,
-              fontWeight: FontWeight.bold,
-            )),
-        const SizedBox(height: 7),
-        Text(label,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
-            )),
-      ],
-    );
-  }
-}
+    final name = getValue('name', getValue('username', 'আদর'));
+    final id = getValue('id', '136433');
+    final coins = getValue('coins', '500');
+    final diamonds = getValue('diamonds', '0');
+    final level = getValue('level', '1');
+    final avatar = getValue('avatar_url', '');
 
-class _VipCard extends StatelessWidget {
-  final String title;
-  final Color color;
-  final IconData icon;
+    return Scaffold(
+      backgroundColor: bg,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 25),
+          child: Column(
+            children: [
+              // Profile header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 25),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFF35006B),
+                      Color(0xFF17002F),
+                      Color(0xFF100026),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        IconButton(
+                          onPressed: () => showMessage('Notifications'),
+                          icon: const Icon(Icons.notifications_none,
+                              color: Colors.white, size: 28),
+                        ),
+                        IconButton(
+                          onPressed: () => showMessage('Setting'),
+                          icon: const Icon(Icons.settings,
+                              color: Colors.white, size: 27),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Stack(
+                          alignment: Alignment.topCenter,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(top: 17),
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: gold, width: 3),
+                              ),
+                              child: CircleAvatar(
+                                radius: 54,
+                                backgroundColor: const Color(0xFF46206C),
+                                backgroundImage: avatar.isNotEmpty
+                                    ? NetworkImage(avatar)
+                                    : null,
+                                child: avatar.isEmpty
+                                    ? const Icon(Icons.person,
+                                        size: 60, color: Colors.white)
+                                    : null,
+                              ),
+                            ),
+                            Icon(Icons.workspace_premium,
+                                color: gold, size: 38),
+                          ],
+                        ),
+                        const SizedBox(width: 17),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'ID: $id',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  _tag('👑 VIP', purple),
+                                  const SizedBox(width: 8),
+                                  _tag('⭐ Lv.$level', Colors.blue),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Live • Chat • Make Friends ❤️',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                    const SizedBox(height: 22),
 
-  const _VipCard({
-    required this.title,
-    required this.color,
-    required this.icon,
-  });
+                    // Coins and diamonds
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 19),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6800B5), Color(0xFF310064)],
+                        ),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(color: purple),
+                      ),
+                      child: Row(
+                        children: [
+                          balanceBox(Icons.monetization_on, coins,
+                              'Coins', gold),
+                          Container(width: 1, height: 48, color: Colors.white30),
+                          balanceBox(Icons.diamond, diamonds,
+                              'Diamonds', Colors.cyanAccent),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 25),
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 105,
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [color, Colors.amber.shade300],
+                    Row(
+                      children: [
+                        statItem('54', 'Visitors', pink),
+                        statItem('25', 'Following', Colors.cyan),
+                        statItem('18', 'Followers', gold),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 22),
+
+                    // VIP cards
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _vipCard(
+                            'My VIP',
+                            Icons.workspace_premium,
+                            const Color(0xFF8B00DD),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _vipCard(
+                            'My SVIP',
+                            Icons.diamond,
+                            const Color(0xFFCF4A00),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    // Four shortcuts
+                    GridView.count(
+                      crossAxisCount: 4,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 0.82,
+                      children: [
+                        actionItem(Icons.account_balance_wallet,
+                            'Wallet', Colors.pinkAccent),
+                        actionItem(Icons.store, 'Store', Colors.orange),
+                        actionItem(Icons.backpack,
+                            'Bag', Colors.amber),
+                        actionItem(Icons.card_giftcard,
+                            'Reward', Colors.yellow),
+                      ],
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // Host and Family
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _featureCard(
+                            'Host Center',
+                            'Become a Host',
+                            Icons.mic,
+                            const Color(0xFF7300FF),
+                            () => showMessage('Host Center'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _featureCard(
+                            'Family',
+                            'Join Family',
+                            Icons.groups,
+                            const Color(0xFFE00091),
+                            () => showMessage('Family'),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Settings menu
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF260047), Color(0xFF18002D)],
+                        ),
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Column(
+                        children: [
+                          menuItem(Icons.workspace_premium, 'My VIP',
+                              badge: 'VIP'),
+                          menuItem(Icons.security, 'Account Security'),
+                          menuItem(Icons.card_giftcard, 'Invite Friends',
+                              badge: '+100 Coins'),
+                          menuItem(Icons.headset_mic, 'Help & Support'),
+                          menuItem(Icons.info, 'About Us'),
+                          menuItem(Icons.logout, 'Logout'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              )),
-          Icon(icon, size: 42, color: Colors.white),
-        ],
       ),
     );
   }
-}
 
-class _BottomItem extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final bool selected;
-  final VoidCallback onTap;
+  Widget _tag(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
 
-  const _BottomItem({
-    required this.icon,
-    required this.title,
-    required this.selected,
-    required this.onTap,
-  });
+  Widget _vipCard(String title, IconData icon, Color color) {
+    return InkWell(
+      onTap: () => showMessage(title),
+      child: Container(
+        height: 85,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color, const Color(0xFF320052)],
+          ),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+              child: Text(title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  )),
+            ),
+            Icon(icon, color: Colors.amber, size: 32),
+          ],
+        ),
+      ),
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _featureCard(String title, String subtitle, IconData icon,
+      Color color, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 30,
-            color: selected ? Colors.amber : Colors.white70,
+      child: Container(
+        height: 112,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color, const Color(0xFF30004E)],
           ),
-          const SizedBox(height: 5),
-          Text(
-            title,
-            style: TextStyle(
-              color: selected ? Colors.amber : Colors.white70,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 35),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      )),
+                  const SizedBox(height: 5),
+                  Text(subtitle,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                      )),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
