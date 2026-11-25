@@ -1,4 +1,6 @@
+
 import 'package:flutter/material.dart';
+import 'wallet_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final Map<String, dynamic>? profile;
@@ -30,9 +32,14 @@ class _ProfilePageState extends State<ProfilePage> {
     return value.toString();
   }
 
-  Widget actionItem(IconData icon, String title, Color color) {
+  Widget actionItem(
+    IconData icon,
+    String title,
+    Color color, {
+    VoidCallback? onTap,
+  }) {
     return InkWell(
-      onTap: () => showMessage(title),
+      onTap: onTap ?? () => showMessage(title),
       borderRadius: BorderRadius.circular(18),
       child: Container(
         height: 112,
@@ -122,7 +129,12 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget balanceBox(IconData icon, String amount, String title, Color color) {
+  Widget balanceBox(
+    IconData icon,
+    String amount,
+    String title,
+    Color color,
+  ) {
     return Expanded(
       child: InkWell(
         onTap: () => showMessage(title),
@@ -169,7 +181,6 @@ class _ProfilePageState extends State<ProfilePage> {
           padding: const EdgeInsets.only(bottom: 25),
           child: Column(
             children: [
-              // Profile header
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 25),
@@ -191,13 +202,19 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                         IconButton(
                           onPressed: () => showMessage('Notifications'),
-                          icon: const Icon(Icons.notifications_none,
-                              color: Colors.white, size: 28),
+                          icon: const Icon(
+                            Icons.notifications_none,
+                            color: Colors.white,
+                            size: 28,
+                          ),
                         ),
                         IconButton(
                           onPressed: () => showMessage('Setting'),
-                          icon: const Icon(Icons.settings,
-                              color: Colors.white, size: 27),
+                          icon: const Icon(
+                            Icons.settings,
+                            color: Colors.white,
+                            size: 27,
+                          ),
                         ),
                       ],
                     ),
@@ -220,13 +237,19 @@ class _ProfilePageState extends State<ProfilePage> {
                                     ? NetworkImage(avatar)
                                     : null,
                                 child: avatar.isEmpty
-                                    ? const Icon(Icons.person,
-                                        size: 60, color: Colors.white)
+                                    ? const Icon(
+                                        Icons.person,
+                                        size: 60,
+                                        color: Colors.white,
+                                      )
                                     : null,
                               ),
                             ),
-                            Icon(Icons.workspace_premium,
-                                color: gold, size: 38),
+                            Icon(
+                              Icons.workspace_premium,
+                              color: gold,
+                              size: 38,
+                            ),
                           ],
                         ),
                         const SizedBox(width: 17),
@@ -269,8 +292,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       style: TextStyle(color: Colors.white, fontSize: 16),
                     ),
                     const SizedBox(height: 22),
-
-                    // Coins and diamonds
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 19),
                       decoration: BoxDecoration(
@@ -282,16 +303,27 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       child: Row(
                         children: [
-                          balanceBox(Icons.monetization_on, coins,
-                              'Coins', gold),
-                          Container(width: 1, height: 48, color: Colors.white30),
-                          balanceBox(Icons.diamond, diamonds,
-                              'Diamonds', Colors.cyanAccent),
+                          balanceBox(
+                            Icons.monetization_on,
+                            coins,
+                            'Coins',
+                            gold,
+                          ),
+                          Container(
+                            width: 1,
+                            height: 48,
+                            color: Colors.white30,
+                          ),
+                          balanceBox(
+                            Icons.diamond,
+                            diamonds,
+                            'Diamonds',
+                            Colors.cyanAccent,
+                          ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 25),
-
                     Row(
                       children: [
                         statItem('54', 'Visitors', pink),
@@ -302,14 +334,11 @@ class _ProfilePageState extends State<ProfilePage> {
                   ],
                 ),
               ),
-
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: [
                     const SizedBox(height: 22),
-
-                    // VIP cards
                     Row(
                       children: [
                         Expanded(
@@ -329,10 +358,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 22),
-
-                    // Four shortcuts
                     GridView.count(
                       crossAxisCount: 4,
                       shrinkWrap: true,
@@ -341,19 +367,37 @@ class _ProfilePageState extends State<ProfilePage> {
                       mainAxisSpacing: 10,
                       childAspectRatio: 0.82,
                       children: [
-                        actionItem(Icons.account_balance_wallet,
-                            'Wallet', Colors.pinkAccent),
-                        actionItem(Icons.store, 'Store', Colors.orange),
-                        actionItem(Icons.backpack,
-                            'Bag', Colors.amber),
-                        actionItem(Icons.card_giftcard,
-                            'Reward', Colors.yellow),
+                        actionItem(
+                          Icons.account_balance_wallet,
+                          'Wallet',
+                          Colors.pinkAccent,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const WalletPage(),
+                              ),
+                            );
+                          },
+                        ),
+                        actionItem(
+                          Icons.store,
+                          'Store',
+                          Colors.orange,
+                        ),
+                        actionItem(
+                          Icons.backpack,
+                          'Bag',
+                          Colors.amber,
+                        ),
+                        actionItem(
+                          Icons.card_giftcard,
+                          'Reward',
+                          Colors.yellow,
+                        ),
                       ],
                     ),
-
                     const SizedBox(height: 18),
-
-                    // Host and Family
                     Row(
                       children: [
                         Expanded(
@@ -377,10 +421,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 20),
-
-                    // Settings menu
                     Container(
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
@@ -390,11 +431,17 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       child: Column(
                         children: [
-                          menuItem(Icons.workspace_premium, 'My VIP',
-                              badge: 'VIP'),
+                          menuItem(
+                            Icons.workspace_premium,
+                            'My VIP',
+                            badge: 'VIP',
+                          ),
                           menuItem(Icons.security, 'Account Security'),
-                          menuItem(Icons.card_giftcard, 'Invite Friends',
-                              badge: '+100 Coins'),
+                          menuItem(
+                            Icons.card_giftcard,
+                            'Invite Friends',
+                            badge: '+100 Coins',
+                          ),
                           menuItem(Icons.headset_mic, 'Help & Support'),
                           menuItem(Icons.info, 'About Us'),
                           menuItem(Icons.logout, 'Logout'),
@@ -444,12 +491,14 @@ class _ProfilePageState extends State<ProfilePage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Flexible(
-              child: Text(title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                  )),
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             Icon(icon, color: Colors.amber, size: 32),
           ],
@@ -458,8 +507,13 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _featureCard(String title, String subtitle, IconData icon,
-      Color color, VoidCallback onTap) {
+  Widget _featureCard(
+    String title,
+    String subtitle,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -480,18 +534,22 @@ class _ProfilePageState extends State<ProfilePage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      )),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
                   const SizedBox(height: 5),
-                  Text(subtitle,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 11,
-                      )),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                    ),
+                  ),
                 ],
               ),
             ),
