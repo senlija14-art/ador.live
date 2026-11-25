@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -66,32 +65,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget menuItem(IconData icon, String title, {String? badge}) {
     return InkWell(
-      onTap: () {
-  if (title == 'Wallet') {
-    final coinsValue = widget.profile?['coins'];
-    final diamondsValue = widget.profile?['diamonds'];
-
-    final coins = coinsValue is num
-        ? coinsValue.toInt()
-        : int.tryParse('$coinsValue') ?? 0;
-
-    final diamonds = diamondsValue is num
-        ? diamondsValue.toInt()
-        : int.tryParse('$diamondsValue') ?? 0;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => WalletPage(
-          coins: coins,
-          diamonds: diamonds,
-        ),
-      ),
-    );
-  } else {
-    showMessage(title);
-  }
-},
+      onTap: () => showMessage(title),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 17, horizontal: 16),
         decoration: const BoxDecoration(
