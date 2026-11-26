@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'wallet_page.dart';
+import 'chat_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final Map<String, dynamic>? profile;
