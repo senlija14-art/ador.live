@@ -47,7 +47,7 @@ class _VipFrameState extends State<VipFrame>
 
   @override
   Widget build(BuildContext context) {
-    final index = (widget.level.clamp(1, 7)) - 1;
+    final int index = widget.level.clamp(1, 7) - 1;
     final frameColors = colors[index];
 
     return AnimatedBuilder(
