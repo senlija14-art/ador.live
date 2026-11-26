@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'wallet_page.dart';
 import 'chat_page.dart';
+import 'vip_frame.dart';
 
 class ProfilePage extends StatefulWidget {
   final Map<String, dynamic>? profile;
@@ -175,6 +176,9 @@ class _ProfilePageState extends State<ProfilePage> {
     final level = getValue('level', '1');
     final avatar = getValue('avatar_url', '');
 
+    final vipLevel =
+        (int.tryParse(getValue('vip_level', '1')) ?? 1).clamp(1, 7);
+
     return Scaffold(
       backgroundColor: bg,
       body: SafeArea(
@@ -221,37 +225,23 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     Row(
                       children: [
-                        Stack(
-                          alignment: Alignment.topCenter,
-                          children: [
-                            Container(
-                              margin: const EdgeInsets.only(top: 17),
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: gold, width: 3),
-                              ),
-                              child: CircleAvatar(
-                                radius: 54,
-                                backgroundColor: const Color(0xFF46206C),
-                                backgroundImage: avatar.isNotEmpty
-                                    ? NetworkImage(avatar)
-                                    : null,
-                                child: avatar.isEmpty
-                                    ? const Icon(
-                                        Icons.person,
-                                        size: 60,
-                                        color: Colors.white,
-                                      )
-                                    : null,
-                              ),
-                            ),
-                            Icon(
-                              Icons.workspace_premium,
-                              color: gold,
-                              size: 38,
-                            ),
-                          ],
+                        VipFrame(
+                          level: vipLevel,
+                          size: 120,
+                          child: CircleAvatar(
+                            radius: 54,
+                            backgroundColor: const Color(0xFF46206C),
+                            backgroundImage: avatar.isNotEmpty
+                                ? NetworkImage(avatar)
+                                : null,
+                            child: avatar.isEmpty
+                                ? const Icon(
+                                    Icons.person,
+                                    size: 60,
+                                    color: Colors.white,
+                                  )
+                                : null,
+                          ),
                         ),
                         const SizedBox(width: 17),
                         Expanded(
