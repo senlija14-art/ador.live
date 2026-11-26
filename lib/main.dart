@@ -1497,7 +1497,8 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
   int? _lastGiftId;
   Timer? _bannerTimer;
   late Map<String, dynamic> _myProfile;
-
+  String? _selectedRoomTheme;
+  
   @override
   void initState() {
     super.initState();
