@@ -1,0 +1,1 @@
+Room theme images folder
