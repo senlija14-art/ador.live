@@ -9,6 +9,7 @@ import 'package:zego_uikit/zego_uikit.dart';
 import 'package:zego_uikit_prebuilt_live_audio_room/zego_uikit_prebuilt_live_audio_room.dart';
 import 'wallet_page.dart';
 import 'profile_page.dart';
+import 'room_theme.dart';
 
 const int zegoAppID = 1215236018;
 const String zegoAppSign = 'd0deabfd9623d2c75ef2dc3f2fd5a80bb46f979c9c9c73171b5e421a15eb102d';
